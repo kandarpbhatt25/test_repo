@@ -1,0 +1,1 @@
+export { authenticateToken, requireRole } from '../modules/auth/auth.middleware';
