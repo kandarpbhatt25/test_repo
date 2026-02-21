@@ -25,6 +25,7 @@ export class VehicleController {
       }
       
       res.status(200).json({
+        success: true,
         count: vehicles.length,
         data: vehicles
       });
@@ -39,11 +40,17 @@ export class VehicleController {
       const vehicle = this.vehicleService.getVehicleById(Array.isArray(id) ? id[0] : id);
       
       if (!vehicle) {
-        res.status(404).json({ error: 'Vehicle not found' });
+        res.status(404).json({ 
+          success: false,
+          error: 'Vehicle not found' 
+        });
         return;
       }
       
-      res.status(200).json(vehicle);
+      res.status(200).json({
+        success: true,
+        data: vehicle
+      });
     } catch (error) {
       next(error);
     }
@@ -56,6 +63,7 @@ export class VehicleController {
       const validationErrors = VehicleValidator.validateCreateVehicle(vehicleData);
       if (validationErrors.length > 0) {
         res.status(400).json({ 
+          success: false,
           error: 'Validation failed', 
           details: validationErrors 
         });
@@ -63,7 +71,10 @@ export class VehicleController {
       }
       
       const newVehicle = this.vehicleService.createVehicle(vehicleData);
-      res.status(201).json(newVehicle);
+      res.status(201).json({
+        success: true,
+        data: newVehicle
+      });
     } catch (error) {
       next(error);
     }
@@ -77,6 +88,7 @@ export class VehicleController {
       const validationErrors = VehicleValidator.validateUpdateVehicle(updateData);
       if (validationErrors.length > 0) {
         res.status(400).json({ 
+          success: false,
           error: 'Validation failed', 
           details: validationErrors 
         });
@@ -87,11 +99,17 @@ export class VehicleController {
       const updatedVehicle = this.vehicleService.updateVehicle(vehicleId, updateData);
       
       if (!updatedVehicle) {
-        res.status(404).json({ error: 'Vehicle not found' });
+        res.status(404).json({ 
+          success: false,
+          error: 'Vehicle not found' 
+        });
         return;
       }
       
-      res.status(200).json(updatedVehicle);
+      res.status(200).json({
+        success: true,
+        data: updatedVehicle
+      });
     } catch (error) {
       next(error);
     }
@@ -104,11 +122,17 @@ export class VehicleController {
       const deleted = this.vehicleService.deleteVehicle(vehicleId);
       
       if (!deleted) {
-        res.status(404).json({ error: 'Vehicle not found' });
+        res.status(404).json({ 
+          success: false,
+          error: 'Vehicle not found' 
+        });
         return;
       }
       
-      res.status(200).json({ message: 'Vehicle deleted successfully' });
+      res.status(200).json({
+        success: true,
+        message: 'Vehicle deleted successfully'
+      });
     } catch (error) {
       next(error);
     }

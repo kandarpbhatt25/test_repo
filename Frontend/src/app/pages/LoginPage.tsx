@@ -4,6 +4,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,7 +21,8 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      // Navigation will be handled by AuthContext and ProtectedRoute
+      // Explicit navigation after successful login
+      navigate('/');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
     } finally {

@@ -1,9 +1,25 @@
 import { useState } from 'react';
-import { DollarSign, TrendingUp, Fuel, Wrench, Plus } from 'lucide-react';
+import { Plus, Search, DollarSign, TrendingUp, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Badge } from '../components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '../components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -12,382 +28,577 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../components/ui/dialog';
-import { Badge } from '../components/ui/badge';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { toast } from 'sonner';
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+import { useDataHelpers } from '../contexts/DataContext';
 
-const monthlyExpenses = [
-  { month: 'Jan', fuel: 185000, maintenance: 42000 },
-  { month: 'Feb', fuel: 192000, maintenance: 38000 },
-  { month: 'Mar', fuel: 178000, maintenance: 55000 },
-  { month: 'Apr', fuel: 201000, maintenance: 45000 },
-  { month: 'May', fuel: 195000, maintenance: 48000 },
-  { month: 'Jun', fuel: 188000, maintenance: 41000 },
-];
-
-const expenseBreakdown = [
-  { name: 'Fuel', value: 188000, color: '#1e40af' },
-  { name: 'Maintenance', value: 41000, color: '#10b981' },
-  { name: 'Insurance', value: 15000, color: '#f59e0b' },
-  { name: 'Tolls & Fees', value: 8000, color: '#06b6d4' },
-  { name: 'Other', value: 5000, color: '#8b5cf6' },
-];
-
-const vehicleExpenses = [
-  {
-    vehicle: 'Volvo FH16 - VN-4523',
-    fuel: 28500,
-    maintenance: 8500,
-    total: 37000,
-    trips: 12,
-    efficiency: 4.2,
-  },
-  {
-    vehicle: 'Tata Prima - MH-7821',
-    fuel: 22000,
-    maintenance: 6200,
-    total: 28200,
-    trips: 10,
-    efficiency: 3.8,
-  },
-  {
-    vehicle: 'Mahindra Blazo - DL-3267',
-    fuel: 31000,
-    maintenance: 12000,
-    total: 43000,
-    trips: 15,
-    efficiency: 4.5,
-  },
-  {
-    vehicle: 'Scania R500 - GJ-1892',
-    fuel: 35000,
-    maintenance: 4500,
-    total: 39500,
-    trips: 14,
-    efficiency: 4.8,
-  },
-];
+interface NewExpenseData {
+  type: string;
+  category: string;
+  amount: number;
+  description: string;
+  vehicleId?: string;
+  tripId?: string;
+  date: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+}
 
 export default function Expenses() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [expenseType, setExpenseType] = useState('');
-  const [selectedVehicle, setSelectedVehicle] = useState('');
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState<NewExpenseData>({
+    type: '',
+    category: '',
+    amount: 0,
+    description: '',
+    vehicleId: '',
+    tripId: '',
+    date: '',
+    status: 'Pending',
+  });
 
-  const handleSubmit = () => {
-    if (!expenseType || !selectedVehicle || !amount || !date) {
-      toast.error('Please fill all fields');
+  const {
+    vehicles,
+    trips,
+    expenses,
+    maintenance,
+    dispatch,
+    getVehicleById,
+    getTripById,
+  } = useDataHelpers();
+
+  // Add new expense
+  const handleAddExpense = async () => {
+    console.log('handleAddExpense called', formData);
+    if (!formData.type || !formData.category || formData.amount <= 0 || !formData.description || !formData.date) {
+      console.log('Validation failed', { type: formData.type, category: formData.category, amount: formData.amount, description: formData.description, date: formData.date });
+      alert('Please fill in all required fields');
       return;
     }
 
-    toast.success('Expense Logged', {
-      description: `${expenseType} expense of ₹${amount} recorded for ${selectedVehicle}`,
-    });
+    try {
+      setIsSubmitting(true);
+      
+      const newExpense = {
+        id: Date.now().toString(),
+        type: formData.type,
+        category: formData.category,
+        amount: formData.amount,
+        description: formData.description,
+        vehicleId: formData.vehicleId,
+        tripId: formData.tripId,
+        date: formData.date,
+        status: formData.status,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-    setExpenseType('');
-    setSelectedVehicle('');
-    setAmount('');
-    setDate('');
-    setIsDialogOpen(false);
+      dispatch({ type: 'ADD_EXPENSE', payload: newExpense });
+      setIsAddDialogOpen(false);
+      setFormData({
+        type: '',
+        category: '',
+        amount: 0,
+        description: '',
+        vehicleId: '',
+        tripId: '',
+        date: '',
+        status: 'Pending',
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to add expense');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Update expense status
+  const handleUpdateExpense = async (id: string, status: any) => {
+    try {
+      dispatch({ type: 'UPDATE_EXPENSE', payload: { id, data: { status } } });
+    } catch (err: any) {
+      alert(err.message || 'Failed to update expense');
+    }
+  };
+
+  // Delete expense
+  const handleDeleteExpense = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
+
+    try {
+      dispatch({ type: 'DELETE_EXPENSE', payload: id });
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete expense');
+    }
+  };
+
+  // Add maintenance records to expenses for calculation
+  const allExpensesWithMaintenance: any[] = [
+    ...expenses,
+    ...maintenance.map(maint => ({
+      id: `maint-${maint.id}`,
+      type: maint.type,
+      category: 'Maintenance',
+      amount: maint.cost || 0,
+      description: maint.description,
+      vehicleId: maint.vehicleId,
+      tripId: '',
+      date: maint.scheduledDate,
+      status: maint.status === 'Completed' ? 'Approved' : 'Pending',
+      createdAt: maint.createdAt,
+      updatedAt: maint.updatedAt,
+    }))
+  ];
+
+  // Filter expenses
+  const filteredExpenses = allExpensesWithMaintenance.filter((expense) => {
+    const matchesSearch =
+      expense.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      expense.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = categoryFilter === 'all' || expense.category === categoryFilter;
+    const matchesStatus = statusFilter === 'all' || expense.status === statusFilter;
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  // Status configuration
+  const statusConfig = {
+    Pending: { color: 'bg-amber-100 text-amber-700', icon: '⏳' },
+    Approved: { color: 'bg-green-100 text-green-700', icon: '✅' },
+    Rejected: { color: 'bg-red-100 text-red-700', icon: '❌' },
+  };
+
+  // Expense categories
+  const expenseCategories = [
+    'Fuel',
+    'Maintenance',
+    'Insurance',
+    'Registration',
+    'Tolls',
+    'Parking',
+    'Other',
+  ];
+
+  // Expense types
+  const expenseTypes = [
+    'Fuel Purchase',
+    'Maintenance Service',
+    'Repair Cost',
+    'Insurance Premium',
+    'Registration Fee',
+    'Toll Payment',
+    'Parking Fee',
+    'Miscellaneous',
+  ];
+
+  // Calculate monthly data for charts
+  const monthlyData = allExpensesWithMaintenance.reduce((acc: Record<string, { fuel: number; maintenance: number; other: number }>, expense: any) => {
+    const month = new Date(expense.date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    if (!acc[month]) {
+      acc[month] = { fuel: 0, maintenance: 0, other: 0 };
+    }
+    
+    if (expense.category === 'Fuel') {
+      acc[month].fuel += expense.amount;
+    } else if (expense.category === 'Maintenance') {
+      acc[month].maintenance += expense.amount;
+    } else {
+      acc[month].other += expense.amount;
+    }
+    
+    return acc;
+  }, {});
+
+  const chartData = Object.entries(monthlyData).map(([month, data]) => ({
+    month,
+    fuel: data.fuel,
+    maintenance: data.maintenance,
+    other: data.other,
+    total: data.fuel + data.maintenance + data.other,
+  }));
+
+  // Category distribution for pie chart
+  const categoryData = expenseCategories.map(category => ({
+    name: category,
+    value: allExpensesWithMaintenance.filter((e: any) => e.category === category).reduce((sum: number, e: any) => sum + e.amount, 0),
+  }));
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-gray-900 mb-2">Expenses & Fuel Logging</h1>
+          <h1 className="text-gray-900 mb-2">Expenses</h1>
           <p className="text-muted-foreground">
-            Track operational costs and fuel consumption across your fleet
+            Track and manage fleet expenses and costs
           </p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button className="bg-blue-600 hover:bg-blue-700">
               <Plus className="w-4 h-4 mr-2" />
-              Log Expense
+              Add Expense
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Log New Expense</DialogTitle>
+              <DialogTitle>Add New Expense</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="expense-type">Expense Type</Label>
-                <Select value={expenseType} onValueChange={setExpenseType}>
-                  <SelectTrigger id="expense-type">
-                    <SelectValue placeholder="Select type" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="type">Expense Type</Label>
+                <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fuel">Fuel</SelectItem>
-                    <SelectItem value="maintenance">Maintenance</SelectItem>
-                    <SelectItem value="insurance">Insurance</SelectItem>
-                    <SelectItem value="tolls">Tolls & Fees</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
+                    {expenseTypes.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="vehicle">Vehicle</Label>
-                <Select value={selectedVehicle} onValueChange={setSelectedVehicle}>
-                  <SelectTrigger id="vehicle">
-                    <SelectValue placeholder="Select vehicle" />
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Select value={formData.category} onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="volvo-vn4523">Volvo FH16 - VN-4523</SelectItem>
-                    <SelectItem value="tata-mh7821">Tata Prima - MH-7821</SelectItem>
-                    <SelectItem value="mahindra-dl3267">Mahindra Blazo - DL-3267</SelectItem>
-                    <SelectItem value="scania-gj1892">Scania R500 - GJ-1892</SelectItem>
+                    {expenseCategories.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="amount">Amount (₹)</Label>
+              <div>
+                <Label htmlFor="amount">Amount ($)</Label>
                 <Input
                   id="amount"
                   type="number"
-                  placeholder="e.g., 5000"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  value={formData.amount}
+                  onChange={(e) => setFormData(prev => ({ ...prev, amount: Number(e.target.value) }))}
+                  placeholder="0.00"
                 />
               </div>
-
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="date">Date</Label>
                 <Input
                   id="date"
                   type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  value={formData.date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label htmlFor="vehicle">Vehicle (Optional)</Label>
+                <Select value={formData.vehicleId} onValueChange={(value) => setFormData(prev => ({ ...prev, vehicleId: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose vehicle" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No vehicle</SelectItem>
+                    {vehicles.map((vehicle) => (
+                      <SelectItem key={vehicle.id} value={vehicle.id}>
+                        {vehicle.name} ({vehicle.licensePlate})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="trip">Trip (Optional)</Label>
+                <Select value={formData.tripId} onValueChange={(value) => setFormData(prev => ({ ...prev, tripId: value }))}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose trip" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">No trip</SelectItem>
+                    {trips.map((trip) => (
+                      <SelectItem key={trip.id} value={trip.id}>
+                        {trip.id} - {trip.origin} → {trip.destination}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-2">
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Describe the expense..."
                 />
               </div>
             </div>
-            <div className="flex justify-end gap-3">
-              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleSubmit}>
-                Log Expense
+            <div className="flex justify-end mt-4">
+              <Button onClick={() => { console.log('Button clicked'); handleAddExpense(); }} disabled={isSubmitting}>
+                {isSubmitting ? 'Adding...' : 'Add Expense'}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-600">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Total Expenses (Month)</p>
-              <DollarSign className="w-5 h-5 text-blue-600" />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${allExpensesWithMaintenance.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
             </div>
-            <p className="text-2xl text-gray-900 mb-1">₹2,57,000</p>
-            <p className="text-xs text-red-600 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 rotate-180" />
-              <span>+5% from last month</span>
+            <p className="text-xs text-muted-foreground">
+              All time
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-600">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Fuel Costs</p>
-              <Fuel className="w-5 h-5 text-purple-600" />
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending</CardTitle>
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${allExpensesWithMaintenance.filter(e => e.status === 'Pending').reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
             </div>
-            <p className="text-2xl text-gray-900 mb-1">₹1,88,000</p>
-            <p className="text-xs text-muted-foreground">73% of total</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-emerald-600">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Maintenance</p>
-              <Wrench className="w-5 h-5 text-emerald-600" />
-            </div>
-            <p className="text-2xl text-gray-900 mb-1">₹41,000</p>
-            <p className="text-xs text-green-600 flex items-center gap-1">
-              <TrendingUp className="w-3 h-3 rotate-180" />
-              <span>-12% reduction</span>
+            <p className="text-xs text-muted-foreground">
+              {allExpensesWithMaintenance.filter(e => e.status === 'Pending').length} items
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-600">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-muted-foreground">Avg Cost/Vehicle</p>
-              <div className="w-5 h-5 rounded bg-amber-100 flex items-center justify-center text-amber-600 text-xs">
-                ₹
-              </div>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Approved</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${allExpensesWithMaintenance.filter(e => e.status === 'Approved').reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
             </div>
-            <p className="text-2xl text-gray-900 mb-1">₹6,946</p>
-            <p className="text-xs text-muted-foreground">Across 37 vehicles</p>
+            <p className="text-xs text-muted-foreground">
+              {allExpensesWithMaintenance.filter(e => e.status === 'Approved').length} items
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Rejected</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              ${allExpensesWithMaintenance.filter(e => e.status === 'Rejected').reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {allExpensesWithMaintenance.filter(e => e.status === 'Rejected').length} items
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Expenses Chart */}
+        <Card>
           <CardHeader>
-            <CardTitle>Monthly Expense Trends</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Fuel and maintenance costs over 6 months
-            </p>
+            <CardTitle>Monthly Expenses</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlyExpenses}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="month" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '8px',
-                  }}
-                  formatter={(value) => `₹${value.toLocaleString()}`}
-                />
-                <Bar dataKey="fuel" fill="#1e40af" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="maintenance" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="fuel" stackId="a" fill="#0088FE" name="Fuel" />
+                <Bar dataKey="maintenance" stackId="a" fill="#00C49F" name="Maintenance" />
+                <Bar dataKey="other" stackId="a" fill="#FFBB28" name="Other" />
               </BarChart>
             </ResponsiveContainer>
-            <div className="flex items-center justify-center gap-6 mt-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-600 rounded" />
-                <span className="text-sm text-muted-foreground">Fuel</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-emerald-500 rounded" />
-                <span className="text-sm text-muted-foreground">Maintenance</span>
-              </div>
-            </div>
           </CardContent>
         </Card>
 
+        {/* Category Distribution */}
         <Card>
           <CardHeader>
-            <CardTitle>Expense Breakdown</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Current month distribution
-            </p>
+            <CardTitle>Category Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
-                  data={expenseBreakdown}
+                  data={categoryData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
+                  labelLine={false}
+                  label={({ name, value }) => `${name}: $${value.toLocaleString()}`}
                   outerRadius={80}
-                  paddingAngle={2}
+                  fill="#8884d8"
                   dataKey="value"
                 >
-                  {expenseBreakdown.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {categoryData.map((_entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `₹${value.toLocaleString()}`} />
+                <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-            <div className="space-y-2 mt-4">
-              {expenseBreakdown.map((item) => (
-                <div key={item.name} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-muted-foreground">{item.name}</span>
-                  </div>
-                  <span className="text-gray-900">₹{item.value.toLocaleString()}</span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Vehicle-wise Breakdown */}
+      {/* Search and Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Vehicle-wise Operational Cost</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Detailed cost analysis per vehicle with efficiency metrics
-          </p>
+          <CardTitle>Expense Records</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {vehicleExpenses.map((vehicle) => (
-              <div
-                key={vehicle.vehicle}
-                className="p-5 border rounded-lg hover:border-blue-300 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-gray-900 mb-1">{vehicle.vehicle}</h3>
-                    <p className="text-sm text-muted-foreground">{vehicle.trips} trips completed</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Total Cost</p>
-                    <p className="text-xl text-gray-900">₹{vehicle.total.toLocaleString()}</p>
-                  </div>
-                </div>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search expenses by type, description, or category..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                {expenseCategories.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Pending">Pending</SelectItem>
+                <SelectItem value="Approved">Approved</SelectItem>
+                <SelectItem value="Rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-                <div className="grid grid-cols-3 gap-4 mb-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Fuel className="w-4 h-4 text-blue-600" />
-                      <p className="text-xs text-muted-foreground">Fuel</p>
-                    </div>
-                    <p className="text-lg text-gray-900">₹{vehicle.fuel.toLocaleString()}</p>
-                  </div>
-                  <div className="p-3 bg-emerald-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Wrench className="w-4 h-4 text-emerald-600" />
-                      <p className="text-xs text-muted-foreground">Maintenance</p>
-                    </div>
-                    <p className="text-lg text-gray-900">₹{vehicle.maintenance.toLocaleString()}</p>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <div className="flex items-center gap-2 mb-1">
-                      <TrendingUp className="w-4 h-4 text-purple-600" />
-                      <p className="text-xs text-muted-foreground">Efficiency</p>
-                    </div>
-                    <p className="text-lg text-gray-900">{vehicle.efficiency} km/L</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600"
-                      style={{
-                        width: `${(vehicle.fuel / vehicle.total) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100">
-                    {Math.round((vehicle.fuel / vehicle.total) * 100)}% Fuel
-                  </Badge>
-                </div>
-              </div>
-            ))}
+          {/* Expenses Table */}
+          <div className="rounded-lg border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Description</TableHead>
+                  <TableHead>Vehicle</TableHead>
+                  <TableHead>Trip</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredExpenses.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={10} className="text-center py-8">
+                      <div className="text-muted-foreground">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                        <p>No expenses found</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredExpenses.map((expense) => (
+                    <TableRow key={expense.id}>
+                      <TableCell>{expense.date}</TableCell>
+                      <TableCell>{expense.type}</TableCell>
+                      <TableCell>{expense.category}</TableCell>
+                      <TableCell>{expense.description}</TableCell>
+                      <TableCell>
+                        {expense.vehicleId ? getVehicleById(expense.vehicleId)?.name || 'Unknown' : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {expense.tripId ? getTripById(expense.tripId)?.id || 'Unknown' : '-'}
+                      </TableCell>
+                      <TableCell className="font-medium">${expense.amount.toFixed(2)}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={expense.status === 'Approved' ? 'default' : 'secondary'}
+                          className={statusConfig[expense.status as keyof typeof statusConfig]?.color}
+                        >
+                          <span className="mr-1">{statusConfig[expense.status as keyof typeof statusConfig]?.icon}</span>
+                          {expense.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {expense.status === 'Pending' && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleUpdateExpense(expense.id, 'Approved')}
+                            >
+                              Approve
+                            </Button>
+                          )}
+                          {expense.status === 'Pending' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUpdateExpense(expense.id, 'Rejected')}
+                            >
+                              Reject
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDeleteExpense(expense.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>

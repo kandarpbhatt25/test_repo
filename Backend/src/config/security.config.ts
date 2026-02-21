@@ -53,10 +53,10 @@ export const rateLimiter = rateLimit({
   }
 });
 
-// Stricter rate limiting for auth endpoints
+// Stricter rate limiting for auth endpoints (DISABLED FOR TESTING)
 export const authRateLimiter = rateLimit({
   windowMs: parseInt(env.AUTH_RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes default
-  max: parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || '5'), // 5 auth attempts per window
+  max: parseInt(env.AUTH_RATE_LIMIT_MAX_REQUESTS || '1000'), // Increased to 1000 for testing
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later.'

@@ -1,5 +1,5 @@
 import { ReactNode, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   Truck,
@@ -72,7 +72,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1 lg:ml-64">
         {/* Header */}
         <header className="sticky top-0 z-30 bg-background border-b">
           <div className="flex h-16 items-center gap-4 px-4 lg:px-6">

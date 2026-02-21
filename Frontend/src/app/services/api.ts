@@ -7,6 +7,8 @@ export interface ApiResponse<T = any> {
   details?: string[];
   warnings?: string[];
   count?: number;
+  token?: string;
+  user?: any;
 }
 
 // API error interface

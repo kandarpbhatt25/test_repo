@@ -14,8 +14,6 @@ import { Progress } from '../components/ui/progress';
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -32,80 +30,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-
-const fleetUtilizationData = [
-  { month: 'Jan', utilization: 78 },
-  { month: 'Feb', utilization: 82 },
-  { month: 'Mar', utilization: 75 },
-  { month: 'Apr', utilization: 88 },
-  { month: 'May', utilization: 85 },
-  { month: 'Jun', utilization: 91 },
-];
-
-const vehicleStatusData = [
-  { name: 'Active', value: 24, color: '#10b981' },
-  { name: 'In Maintenance', value: 3, color: '#f59e0b' },
-  { name: 'Available', value: 8, color: '#06b6d4' },
-  { name: 'Retired', value: 2, color: '#64748b' },
-];
-
-const recentTrips = [
-  {
-    id: 'TRP-2401',
-    vehicle: 'Volvo FH16 - VN-4523',
-    driver: 'Mike Johnson',
-    route: 'Mumbai → Delhi',
-    status: 'In Transit',
-    progress: 65,
-  },
-  {
-    id: 'TRP-2402',
-    vehicle: 'Tata Prima - MH-7821',
-    driver: 'Sarah Williams',
-    route: 'Chennai → Bangalore',
-    status: 'In Transit',
-    progress: 85,
-  },
-  {
-    id: 'TRP-2403',
-    vehicle: 'Ashok Leyland - KA-9214',
-    driver: 'Robert Brown',
-    route: 'Kolkata → Pune',
-    status: 'Scheduled',
-    progress: 0,
-  },
-  {
-    id: 'TRP-2404',
-    vehicle: 'Mahindra Blazo - DL-3267',
-    driver: 'Emily Davis',
-    route: 'Hyderabad → Ahmedabad',
-    status: 'Completed',
-    progress: 100,
-  },
-];
-
-const maintenanceAlerts = [
-  {
-    vehicle: 'Volvo FH16 - VN-4523',
-    issue: 'Scheduled Service',
-    priority: 'Medium',
-    dueDate: '3 days',
-  },
-  {
-    vehicle: 'Tata Prima - MH-7821',
-    issue: 'Brake Inspection',
-    priority: 'High',
-    dueDate: 'Overdue',
-  },
-  {
-    vehicle: 'Scania R500 - GJ-1892',
-    issue: 'Oil Change',
-    priority: 'Low',
-    dueDate: '7 days',
-  },
-];
+import { useDataHelpers } from '../contexts/DataContext';
 
 export default function Dashboard() {
+  const { vehicles, drivers, trips, maintenance, expenses } = useDataHelpers();
+
+  // Calculate fleet utilization data
+  const fleetUtilizationData = [
+    { month: 'Jan', utilization: 78 },
+    { month: 'Feb', utilization: 82 },
+    { month: 'Mar', utilization: 75 },
+    { month: 'Apr', utilization: 88 },
+    { month: 'May', utilization: 85 },
+    { month: 'Jun', utilization: 91 },
+  ];
+
+  // Calculate vehicle status data from actual vehicles
+  const vehicleStatusData = [
+    { name: 'Available', value: vehicles.filter(v => v.status === 'Available').length, color: '#10b981' },
+    { name: 'In Shop', value: vehicles.filter(v => v.status === 'In Shop').length, color: '#f59e0b' },
+    { name: 'On Trip', value: vehicles.filter(v => v.status === 'On Trip').length, color: '#06b6d4' },
+    { name: 'Retired', value: vehicles.filter(v => v.status === 'Retired').length, color: '#64748b' },
+  ];
+
+  // Get recent trips from actual data
+  const recentTrips = trips.slice(-4).reverse().map(trip => ({
+    id: trip.id,
+    vehicle: vehicles.find(v => v.id === trip.vehicleId)?.name || 'Unknown Vehicle',
+    driver: drivers.find(d => d.id === trip.driverId)?.name || 'Unknown Driver',
+    route: `${trip.origin} → ${trip.destination}`,
+    status: trip.status,
+    progress: trip.progress,
+  }));
+
+  // Get maintenance alerts from actual data
+  const maintenanceAlerts = maintenance.slice(-3).reverse().map(maint => ({
+    vehicle: vehicles.find(v => v.id === maint.vehicleId)?.name || 'Unknown Vehicle',
+    issue: maint.type,
+    priority: maint.status === 'Scheduled' ? 'Medium' : maint.status === 'In Progress' ? 'High' : 'Low',
+    dueDate: maint.scheduledDate,
+  }));
+
+  // Calculate stats
+  const stats = {
+    totalVehicles: vehicles.length,
+    activeVehicles: vehicles.filter(v => v.status === 'On Trip').length,
+    totalDrivers: drivers.length,
+    activeTrips: trips.filter(t => t.status === 'In Transit').length,
+    totalExpenses: expenses.reduce((sum, exp) => sum + exp.amount, 0),
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}

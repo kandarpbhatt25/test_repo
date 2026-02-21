@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Search, Download, Truck, AlertCircle, Edit2, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import apiService from '../services/api';
+import { useDataHelpers } from '../contexts/DataContext';
 
 interface Vehicle {
   id: string;
@@ -65,9 +65,6 @@ const statusConfig = {
 } as const;
 
 export default function VehicleRegistry() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -82,38 +79,12 @@ export default function VehicleRegistry() {
     region: '',
   });
 
-  // Fetch vehicles from API
-  const fetchVehicles = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await apiService.get('/vehicles');
-      if (response.success && response.data) {
-        // Transform API data to match frontend interface
-        const transformedVehicles: Vehicle[] = response.data.map((vehicle: any) => ({
-          id: vehicle.id,
-          name: vehicle.make || vehicle.name || '',
-          model: vehicle.model || '',
-          licensePlate: vehicle.licensePlate || '',
-          type: vehicle.type || '',
-          capacity: vehicle.capacity ? `${vehicle.capacity} tons` : '',
-          odometer: vehicle.mileage ? `${vehicle.mileage.toLocaleString()} km` : '',
-          status: vehicle.status || 'Available',
-          lastService: vehicle.updatedAt ? new Date(vehicle.updatedAt).toLocaleDateString() : new Date().toLocaleDateString(),
-          region: vehicle.region || 'North',
-          year: vehicle.year,
-          mileage: vehicle.mileage,
-          createdAt: vehicle.createdAt,
-          updatedAt: vehicle.updatedAt,
-        }));
-        setVehicles(transformedVehicles);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch vehicles');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    vehicles,
+    dispatch,
+    loading,
+    error,
+  } = useDataHelpers();
 
   // Add new vehicle
   const handleAddVehicle = async () => {
@@ -124,34 +95,34 @@ export default function VehicleRegistry() {
 
     try {
       setIsSubmitting(true);
-      setError('');
       
-      const vehicleData = {
+      const newVehicle: Vehicle = {
+        id: Date.now().toString(),
         name: formData.name,
         model: formData.model,
         licensePlate: formData.licensePlate,
         type: formData.type,
         capacity: formData.capacity,
+        odometer: '0 km',
+        status: 'Available',
+        lastService: new Date().toLocaleDateString(),
         region: formData.region,
         year: new Date().getFullYear(),
         mileage: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
-      const response = await apiService.post('/vehicles', vehicleData);
-      if (response.success) {
-        setIsAddDialogOpen(false);
-        setFormData({
-          name: '',
-          model: '',
-          licensePlate: '',
-          type: '',
-          capacity: '',
-          region: '',
-        });
-        await fetchVehicles(); // Refresh the list
-      } else {
-        setError(response.message || 'Failed to add vehicle');
-      }
+      dispatch({ type: 'ADD_VEHICLE', payload: newVehicle });
+      setIsAddDialogOpen(false);
+      setFormData({
+        name: '',
+        model: '',
+        licensePlate: '',
+        type: '',
+        capacity: '',
+        region: '',
+      });
     } catch (err: any) {
       setError(err.message || 'Failed to add vehicle');
     } finally {
@@ -166,13 +137,7 @@ export default function VehicleRegistry() {
     }
 
     try {
-      setError('');
-      const response = await apiService.delete(`/vehicles/${id}`);
-      if (response.success) {
-        await fetchVehicles(); // Refresh the list
-      } else {
-        setError(response.message || 'Failed to delete vehicle');
-      }
+      dispatch({ type: 'DELETE_VEHICLE', payload: id });
     } catch (err: any) {
       setError(err.message || 'Failed to delete vehicle');
     }
@@ -181,16 +146,16 @@ export default function VehicleRegistry() {
   // Update vehicle
   const handleUpdateVehicle = async (id: string, updateData: Partial<Vehicle>) => {
     try {
-      setError('');
-      const response = await apiService.put(`/vehicles/${id}`, updateData);
-      if (response.success) {
-        await fetchVehicles(); // Refresh the list
-      } else {
-        setError(response.message || 'Failed to update vehicle');
-      }
+      dispatch({ type: 'UPDATE_VEHICLE', payload: { id, data: updateData } });
     } catch (err: any) {
       setError(err.message || 'Failed to update vehicle');
     }
+  };
+
+  // Set error state
+  const setError = (message: string) => {
+    // You could add a toast notification here
+    console.error(message);
   };
 
   // Calculate stats from vehicles data
@@ -212,10 +177,7 @@ export default function VehicleRegistry() {
     return matchesSearch && matchesStatus && matchesType;
   });
 
-  // Fetch vehicles on component mount
-  useEffect(() => {
-    fetchVehicles();
-  }, []);
+  // Remove useEffect for fetching since data comes from context
 
   return (
     <div className="space-y-6">
@@ -429,7 +391,7 @@ export default function VehicleRegistry() {
               <div className="text-center">
                 <AlertCircle className="w-8 h-8 text-red-600 mx-auto mb-2" />
                 <p className="text-red-700">{error}</p>
-                <Button onClick={fetchVehicles} className="mt-2">
+                <Button onClick={() => window.location.reload()} className="mt-2">
                   Retry
                 </Button>
               </div>

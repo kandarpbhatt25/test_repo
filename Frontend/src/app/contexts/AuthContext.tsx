@@ -63,16 +63,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const response = await apiService.post('/auth/login', { email, password });
       
-      if (response.success && response.data?.token) {
+      if (response.token) {
         // Store JWT token
-        apiService.setToken(response.data.token);
+        apiService.setToken(response.token);
         
         // Set user data
         const userData: User = {
-          id: response.data.user?.id || '1',
-          email: response.data.user?.email || email,
-          role: response.data.user?.role || 'admin',
-          name: response.data.user?.name || 'Fleet Manager'
+          id: response.user?.id || '1',
+          email: response.user?.email || email,
+          role: response.user?.role || 'admin',
+          name: response.user?.name || 'Fleet Manager'
         };
         
         setUser(userData);
